@@ -1,0 +1,82 @@
+services:
+  doco-cd:
+    image: ghcr.io/kimdre/doco-cd:0.125.0
+    container_name: doco-cd
+    restart: unless-stopped
+    depends_on:
+      apprise:
+        condition: service_healthy
+    environment:
+      TZ: Europe/Berlin
+      DOCO_CD_HOST: ${DOCO_CD_HOST:-doco-cd.jc-otto.de}
+      GIT_ACCESS_TOKEN: ${GIT_ACCESS_TOKEN:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      MONITORING_GF_SECURITY_ADMIN_PASSWORD: ${MONITORING_GF_SECURITY_ADMIN_PASSWORD:-}
+      MONITORING_NEXTCLOUD_AUTH_TOKEN: ${MONITORING_NEXTCLOUD_AUTH_TOKEN:-}
+      MONITORING_SCP_REFRESHTOKEN: ${MONITORING_SCP_REFRESHTOKEN:-}
+      NGINX_LETSENCRYPT_CLOUDFLARE_DNS_TOKEN: ${NGINX_LETSENCRYPT_CLOUDFLARE_DNS_TOKEN:-}
+      NGINX_LETSENCRYPT_PROXY_DEFAULT_EMAIL: ${NGINX_LETSENCRYPT_PROXY_DEFAULT_EMAIL:-}
+      SYNAPSE_POSTGRES_USER: ${SYNAPSE_POSTGRES_USER:-}
+      SYNAPSE_POSTGRES_PASSWORD: ${SYNAPSE_POSTGRES_PASSWORD:-}
+      SYNAPSE_WHATSAPP_POSTGRES_PASSWORD: ${SYNAPSE_WHATSAPP_POSTGRES_PASSWORD:-}
+      SYNAPSE_SIGNAL_POSTGRES_PASSWORD: ${SYNAPSE_SIGNAL_POSTGRES_PASSWORD:-}
+      SYNAPSE_TELEGRAM_POSTGRES_PASSWORD: ${SYNAPSE_TELEGRAM_POSTGRES_PASSWORD:-}
+      NEXTCLOUD_AIO_DATABASE_PASSWORD: ${NEXTCLOUD_AIO_DATABASE_PASSWORD:-}
+      NEXTCLOUD_AIO_FULLTEXTSEARCH_PASSWORD: ${NEXTCLOUD_AIO_FULLTEXTSEARCH_PASSWORD:-}
+      NEXTCLOUD_AIO_IMAGINARY_SECRET: ${NEXTCLOUD_AIO_IMAGINARY_SECRET:-}
+      NEXTCLOUD_AIO_NEXTCLOUD_PASSWORD: ${NEXTCLOUD_AIO_NEXTCLOUD_PASSWORD:-}
+      NEXTCLOUD_AIO_ONLYOFFICE_SECRET: ${NEXTCLOUD_AIO_ONLYOFFICE_SECRET:-}
+      NEXTCLOUD_AIO_RECORDING_SECRET: ${NEXTCLOUD_AIO_RECORDING_SECRET:-}
+      NEXTCLOUD_AIO_REDIS_PASSWORD: ${NEXTCLOUD_AIO_REDIS_PASSWORD:-}
+      NEXTCLOUD_AIO_SIGNALING_SECRET: ${NEXTCLOUD_AIO_SIGNALING_SECRET:-}
+      NEXTCLOUD_AIO_TALK_INTERNAL_SECRET: ${NEXTCLOUD_AIO_TALK_INTERNAL_SECRET:-}
+      NEXTCLOUD_AIO_TURN_SECRET: ${NEXTCLOUD_AIO_TURN_SECRET:-}
+      NEXTCLOUD_AIO_WHITEBOARD_SECRET: ${NEXTCLOUD_AIO_WHITEBOARD_SECRET:-}
+      APPRISE_API_URL: http://apprise:8000/notify
+      APPRISE_NOTIFY_URLS: ${APPRISE_NOTIFY_URLS:-}
+      APPRISE_NOTIFY_LEVEL: ${APPRISE_NOTIFY_LEVEL:-success}
+      APPRISE_NOTIFY_REPEAT_INTERVAL: ${APPRISE_NOTIFY_REPEAT_INTERVAL:-1h}
+      POLL_CONFIG_FILE: /config/poll-config.yml
+      PASS_ENV: "true"
+      SELF_UPDATE_ENABLED: "true"
+      SELF_UPDATE_STRATEGY: applier
+      VIRTUAL_HOST: ${DOCO_CD_HOST:-doco-cd.jc-otto.de}
+      VIRTUAL_PORT: 80
+      LETSENCRYPT_HOST: ${DOCO_CD_HOST:-doco-cd.jc-otto.de}
+    volumes:
+      - data:/data
+      - ./poll-config.yml:/config/poll-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - proxy
+      - prometheus
+      - notifications
+    cap_drop:
+      - ALL
+
+  apprise:
+    image: caronc/apprise:2.0.1
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin
+      APPRISE_WORKER_COUNT: 1
+    networks:
+      - notifications
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/status >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  prometheus:
+    external: true
+  proxy:
+    external: true
+  notifications:
+    driver: bridge
+
+volumes:
+  data:
+    name: doco-cd_data
